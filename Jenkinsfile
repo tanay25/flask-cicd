@@ -47,4 +47,34 @@ pipeline {
         stage('Push Image to DockerHub') {
             steps {
                 withCredentials([usernamePassword(
-                    credential
+                    credentialsId: 'dockerhub-creds',
+                    usernameVariable: 'USER',
+                    passwordVariable: 'PASS'
+                )]) {
+                    sh '''
+                        echo $PASS | docker login -u $USER --password-stdin
+                        docker push $DOCKER_USER/$IMAGE_NAME:latest
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy Container') {
+            steps {
+                sh '''
+                    docker rm -f flask-app || true
+                    docker run -d -p 5000:5000 --name flask-app $DOCKER_USER/$IMAGE_NAME:latest
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ CI/CD Pipeline Completed Successfully"
+        }
+        failure {
+            echo "❌ Pipeline Failed"
+        }
+    }
+}
